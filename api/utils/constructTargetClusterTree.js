@@ -4,50 +4,6 @@ const { assert } = require('console');
 
 const HttpStatus = require('http-status-codes')
 
-const resourceMap = {
-  clusterresourcesetbindings: { group: "addons.cluster.x-k8s.io", category: "clusterInfra" },
-  clusterresourcesets: { group: "addons.cluster.x-k8s.io", category: "clusterInfra" },
-  // clusterclasses: { group: "cluster.x-k8s.io", category: "clusterInfra" },
-  clusters: { group: "cluster.x-k8s.io", category: null },
-  machinedeployments: { group: "cluster.x-k8s.io", category: "workers" },
-  // machinehealthchecks: { group: "cluster.x-k8s.io", category: "clusterInfra" },
-  machinepools: { group: "cluster.x-k8s.io", category: "workers" },
-  machinesets: { group: "cluster.x-k8s.io", category: "workers" },
-  machines: { group: "cluster.x-k8s.io", category: null },
-  azureclusteridentities: { group: "infrastructure.cluster.x-k8s.io", category: "clusterInfra" },
-  azureclusters: { group: "infrastructure.cluster.x-k8s.io", category: "clusterInfra" },
-  dockerclusters: { group: "infrastructure.cluster.x-k8s.io", category: "clusterInfra" },
-  azuremachinepoolmachines: { group: "infrastructure.cluster.x-k8s.io", category: "workers" },
-  azuremachinepools: { group: "infrastructure.cluster.x-k8s.io", category: "workers" },
-  dockermachinepools: { group: "infrastructure.cluster.x-k8s.io", category: "workers" },
-  azuremachines: { group: "infrastructure.cluster.x-k8s.io", category: null },
-  dockermachines: { group: "infrastructure.cluster.x-k8s.io", category: null },
-  azuremachinetemplates: { group: "infrastructure.cluster.x-k8s.io", category: null },
-  dockermachinetemplates: { group: "infrastructure.cluster.x-k8s.io", category: null },
-  // azuremanagedclusters: { group: "infrastructure.cluster.x-k8s.io", category: "clusterInfra" },
-  // azuremanagedcontrolplanes: { group: "infrastructure.cluster.x-k8s.io", category: "clusterInfra" },
-  // azuremanagedmachinepools: { group: "infrastructure.cluster.x-k8s.io", category: "clusterInfra" },
-  // azureserviceprincipals: { group: "infrastructure.cluster.x-k8s.io", category: "clusterInfra" },
-  // azuresystemassignedidentites: { group: "infrastructure.cluster.x-k8s.io", category: "clusterInfra" },
-  // azureuserassignedidentites: { group: "infrastructure.cluster.x-k8s.io", category: "clusterInfra" },
-  kubeadmconfigs: { group: "bootstrap.cluster.x-k8s.io", category: null },
-  kubeadmconfigtemplates: { group: "bootstrap.cluster.x-k8s.io", category: "workers" },
-  // TODO: remove category for kubeadmconfigtemplates
-  // kubeadmconfigs: { group: "bootstrap.cluster.x-k8s.io", category: null },
-  // kubeadmconfigtemplates: { group: "bootstrap.cluster.x-k8s.io", category: null },
-  kubeadmcontrolplanes: { group: "controlplane.cluster.x-k8s.io", category: "controlPlane" },
-  // kubeadmcontrolplanetemplates: { group: "controlplane.cluster.x-k8s.io", category: "controlPlane" },
-};
-
-function resolveCategory(crd, clusterUid) {
-  if (crd.owner == clusterUid || crd.kind == 'Cluster')
-    return null
-  else if (crd.labels !== undefined)
-    return ('cluster.x-k8s.io/control-plane' in crd.labels) ? 'controlPlane' : 'workers'
-  else // TODO: Don't rely on names of CRDs
-    return ((crd.name.indexOf('control-plane') > -1) || (crd.name.indexOf('controlplane') > -1)) ? 'controlPlane' : 'workers'
-}
-
 function findRef(spec, refKind) {
   let result = null;
   if (spec == undefined || spec.constructor.name != 'Object')
@@ -97,21 +53,39 @@ function resolveAllCategories(allCrds, clusterUid) {
     })
   })
 
-  allCrds.forEach((crd, i, arr) => {
-    if (crd.refPointer != null) {
-      let referring = arr[crd.refPointer];
-      if (referring.refCategory == 'controlPlane' || crd.refKind == 'controlPlaneRef')
-        arr[i].refCategory = 'controlPlane';
-      else if (referring.kind == 'Cluster' && crd.refKind == 'infrastructureRef')
-        arr[i].refCategory = 'clusterInfra';
-    } else if (crd.kind == 'ClusterResourceSet' || crd.kind == 'ClusterResourceSetBinding')
-      arr[i].refCategory = 'clusterInfra';
-  })
+  let changed;
+  do {
+    changed = false;
+    allCrds.forEach((crd, i, arr) => {
+      if (crd.refCategory === undefined) {
+        if (crd.refPointer != null) {
+          let referring = arr[crd.refPointer];
+          console.log('Ref for', crd.key, 'is', referring.key, 'with', referring.refCategory);
+          if (referring.refCategory == 'controlPlane' || crd.refKind == 'controlPlaneRef') {
+            arr[i].refCategory = 'controlPlane';
+            changed = true;
+          } else if (referring.kind == 'Cluster' && crd.refKind == 'infrastructureRef') {
+            arr[i].refCategory = 'clusterInfra';
+            changed = true;
+          }
+        } else if (crd.kind == 'ClusterResourceSet' || crd.kind == 'ClusterResourceSetBinding') {
+          arr[i].refCategory = 'clusterInfra';
+          changed = true;
+        }
+      }
+    })
+  } while (changed);
 
   allCrds.forEach((crd, i, arr) => {
     if (crd.refCategory === undefined) {
       arr[i].refCategory = 'workers';
     }
+  })
+
+  allCrds.forEach((crd, i, arr) => {
+    // Lastly, take all the parents that point to the root and bind them to their respective category node
+    if (crd.parent == clusterUid)
+      arr[i].parent = crd.refCategory;
   })
 
   return allCrds;
@@ -156,7 +130,7 @@ function resolveOwners(crd) {
   }
 }
 
-async function getCRDInstances(group, plural, initCategory, clusterName, clusterUid) {
+async function getCRDInstances(group, plural, clusterName, clusterUid) {
   const kc = new k8s.KubeConfig();
   kc.loadFromDefault();
   const k8sCrd = kc.makeApiClient(k8s.CustomObjectsApi);
@@ -190,12 +164,6 @@ async function getCRDInstances(group, plural, initCategory, clusterName, cluster
       } else {
         owner = resolveOwners(crd);
       }
-      // 3. If the category depends on context, i.e. Machine, then resolve it now
-      crd.category = initCategory ? initCategory : resolveCategory(crd, clusterUid)
-
-      // Lastly, take all the parents that point to the root and bind them to their respective category node
-      if (owner == clusterUid)
-        owner = crd.category;
 
       crd.parent = owner;
       crds.push(crd)
@@ -237,19 +205,13 @@ module.exports = async function constructTargetClusterTree(clusterName) {
   let clusterLabels = clusters[0].metadata.labels;
   // End hack
 
+  const resources = await fetchCRDTypes();
   let allCrds = [];
 
-  for (const [plural, value] of Object.entries(resourceMap)) {
-    const instances = await getCRDInstances(value.group, plural, value.category, clusterName, clusterUid);
+  for (const [plural, group] of Object.entries(resources)) {
+    const instances = await getCRDInstances(group, plural, clusterName, clusterUid);
     allCrds = allCrds.concat(instances);
   }
-  // const resources = await fetchCRDTypes();
-  // let allCrds = [];
-
-  // for (const [plural, group] of Object.entries(resources)) {
-  //   const instances = await getCRDInstances(group, plural, clusterName, clusterUid);
-  //   allCrds = allCrds.concat(instances);
-  // }
 
   const whitelistKinds = ['ClusterResourceSet', 'ClusterResourceSetBinding'];
 
@@ -259,7 +221,6 @@ module.exports = async function constructTargetClusterTree(clusterName) {
     crd.name.indexOf(clusterName) == 0 ||
     whitelistKinds.includes(crd.kind)
   ));
-  // console.log(crds);
 
   // TODO: Filter types with cluster-name label instead
   // let crds = allCrds.filter(crd => (crd.labels['cluster.x-k8s.io/cluster-name'] == clusterName || whitelistKinds.includes(crd.kind)));
@@ -329,7 +290,7 @@ module.exports = async function constructTargetClusterTree(clusterName) {
     return acc;
   }, {});
 
-  console.log(idMapping);
+  // console.log(idMapping);
 
   let root;
   // console.log(crds);

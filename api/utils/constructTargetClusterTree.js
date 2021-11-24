@@ -48,6 +48,75 @@ function resolveCategory(crd, clusterUid) {
     return ((crd.name.indexOf('control-plane') > -1) || (crd.name.indexOf('controlplane') > -1)) ? 'controlPlane' : 'workers'
 }
 
+function findRef(spec, refKind) {
+  let result = null;
+  if (spec == undefined || spec.constructor.name != 'Object')
+    return null;
+  for (const [k, v] of Object.entries(spec)) {
+    if (k == refKind)
+      return v
+    let recurse = findRef(v, refKind)
+    if (recurse != null)
+      result = recurse;
+  }
+
+  return result;
+}
+
+function resolveAllCategories(allCrds, clusterUid) {
+
+  //   // 3. If the category depends on context, i.e. Machine, then resolve it now
+  // crd.category = resolveCategory(crd, clusterUid)
+
+  // // Lastly, take all the parents that point to the root and bind them to their respective category node
+  // if (owner == clusterUid)
+  //   owner = crd.category;
+  const idMapping = allCrds.reduce((acc, e, i) => {
+    acc[e.key] = i;
+    return acc;
+  }, {});
+
+  const refs = ['configRef', 'infrastructureRef', 'controlPlaneRef']
+  allCrds.forEach((crd, i, arr) => {
+    console.log('Resource', crd.key)
+    if (crd.labels !== undefined && 'cluster.x-k8s.io/control-plane' in crd.labels)
+      arr[i].refCategory = 'controlPlane';
+    else if (crd.kind == 'Cluster')
+      arr[i].refCategory = null; // Root node has a null category, which is different from undefined
+
+    refs.forEach(r => {
+      let objectRef = findRef(crd, r)
+      if (objectRef != null) {
+        let key = objectRef.kind + '/' + objectRef.name;
+        let refIndex = idMapping[key];
+        console.log('Found ref', r, 'at', refIndex, 'for object', arr[refIndex].key);
+        arr[refIndex].refPointer = i; // TODO: resolve multiple refs on the same resource
+        arr[refIndex].refKind = r;
+
+      }
+    })
+  })
+
+  allCrds.forEach((crd, i, arr) => {
+    if (crd.refPointer != null) {
+      let referring = arr[crd.refPointer];
+      if (referring.refCategory == 'controlPlane' || crd.refKind == 'controlPlaneRef')
+        arr[i].refCategory = 'controlPlane';
+      else if (referring.kind == 'Cluster' && crd.refKind == 'infrastructureRef')
+        arr[i].refCategory = 'clusterInfra';
+    } else if (crd.kind == 'ClusterResourceSet' || crd.kind == 'ClusterResourceSetBinding')
+      arr[i].refCategory = 'clusterInfra';
+  })
+
+  allCrds.forEach((crd, i, arr) => {
+    if (crd.refCategory === undefined) {
+      arr[i].refCategory = 'workers';
+    }
+  })
+
+  return allCrds;
+}
+
 const multipleOwners = {
   // Format = Kind: { ExpectedOwner, RedundantOwners }
   'AzureMachine': { expectedOwner: 'Machine', redundantOwners: ['KubeadmControlPlane'] },
@@ -101,12 +170,15 @@ async function getCRDInstances(group, plural, initCategory, clusterName, cluster
         id: e.metadata.uid,
         name: e.metadata.name,
         kind: e.kind,
+        key: e.kind + '/' + e.metadata.name,
         group: group,
         plural: plural,
         provider: group.substr(0, group.indexOf('.')),
         ownerRefs: e.metadata.ownerReferences,
         labels: e.metadata.labels,
-        spec: e.spec
+        spec: e.spec,
+        refPointer: null,
+        refKind: null
       }
 
       // 2. If there are resources left without owners, bind them to the root
@@ -118,7 +190,6 @@ async function getCRDInstances(group, plural, initCategory, clusterName, cluster
       } else {
         owner = resolveOwners(crd);
       }
-
       // 3. If the category depends on context, i.e. Machine, then resolve it now
       crd.category = initCategory ? initCategory : resolveCategory(crd, clusterUid)
 
@@ -137,6 +208,20 @@ async function getCRDInstances(group, plural, initCategory, clusterName, cluster
     console.log(error);
     throw 'Error fetching for ' + plural + ' in ' + clusterName
   }
+}
+
+async function fetchCRDTypes() {
+  const kc = new k8s.KubeConfig();
+  kc.loadFromDefault();
+  const k8sApi = kc.makeApiClient(k8s.ApiextensionsV1Api);
+  let response = await k8sApi.listCustomResourceDefinition();
+
+  let resources = {}
+  response.body.items.forEach(item => {
+    resources[item.spec.names.plural] = item.spec.group
+  })
+
+  return resources;
 }
 
 module.exports = async function constructTargetClusterTree(clusterName) {
@@ -158,6 +243,13 @@ module.exports = async function constructTargetClusterTree(clusterName) {
     const instances = await getCRDInstances(value.group, plural, value.category, clusterName, clusterUid);
     allCrds = allCrds.concat(instances);
   }
+  // const resources = await fetchCRDTypes();
+  // let allCrds = [];
+
+  // for (const [plural, group] of Object.entries(resources)) {
+  //   const instances = await getCRDInstances(group, plural, clusterName, clusterUid);
+  //   allCrds = allCrds.concat(instances);
+  // }
 
   const whitelistKinds = ['ClusterResourceSet', 'ClusterResourceSetBinding'];
 
@@ -190,6 +282,15 @@ module.exports = async function constructTargetClusterTree(clusterName) {
   } else {
     crds = crds.filter(crd => (!whitelistKinds.includes(crd.kind)));
   }
+
+  let resolved = resolveAllCategories(crds, clusterUid);
+  console.log('Categories Are');
+  resolved.forEach(e => {
+    console.log(e.kind + '/' + e.name);
+    console.log(e.category);
+    console.log(e.refCategory);
+    console.log();
+  })
 
 
   // Add dummy nodes with CRDs
@@ -254,8 +355,8 @@ module.exports = async function constructTargetClusterTree(clusterName) {
 
   });
 
-  console.log('Final tree:');
-  console.log(root);
+  // console.log('Final tree:');
+  // console.log(root);
   return root;
 
 }

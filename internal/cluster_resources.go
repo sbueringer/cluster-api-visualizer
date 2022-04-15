@@ -1,10 +1,12 @@
 package internal
 
 import (
+	"fmt"
 	"log"
 	"sort"
 	"strings"
 
+	"github.com/gobuffalo/flect"
 	"github.com/pkg/errors"
 	"sigs.k8s.io/cluster-api/cmd/clusterctl/client"
 	"sigs.k8s.io/cluster-api/cmd/clusterctl/client/tree"
@@ -13,6 +15,7 @@ import (
 
 type ClusterResourceNode struct {
 	Name        string                 `json:"name"`
+	DisplayName string                 `json:"displayName"`
 	Kind        string                 `json:"kind"`
 	Group       string                 `json:"group"`
 	Version     string                 `json:"version"`
@@ -33,13 +36,23 @@ func ConstructClusterResourceTree(defaultClient client.Client, dcOptions client.
 
 		return nil, NewInternalError(err)
 	}
+	dcOptions.Grouping = false
+	objTreeUngrouped, err := defaultClient.DescribeCluster(dcOptions)
+	if err != nil {
+		if strings.HasSuffix(err.Error(), "not found") {
+			log.Printf("Has suffix")
+			return nil, &HTTPError{Status: 404, Message: err.Error()}
+		}
 
-	resourceTree := objectTreeToResourceTree(objTree, objTree.GetRoot())
+		return nil, NewInternalError(err)
+	}
+
+	resourceTree := objectTreeToResourceTree(objTree, objTreeUngrouped, objTree.GetRoot())
 
 	return resourceTree, nil
 }
 
-func objectTreeToResourceTree(objTree *tree.ObjectTree, object ctrlclient.Object) *ClusterResourceNode {
+func objectTreeToResourceTree(objTree *tree.ObjectTree, objTreeUngrouped *tree.ObjectTree, object ctrlclient.Object) *ClusterResourceNode {
 	if object == nil {
 		return nil
 	}
@@ -53,8 +66,19 @@ func objectTreeToResourceTree(objTree *tree.ObjectTree, object ctrlclient.Object
 	if err != nil {
 		log.Println(err)
 	}
+	displayName := tree.GetMetaName(object)
+	if displayName == "" {
+		displayName = object.GetName()
+	}
+	if tree.IsGroupObject(object) {
+		// TODO: use GetGroupItems to be able to expand subgroups
+		items := strings.Split(tree.GetGroupItems(object), tree.GroupItemsSeparator)
+		kind := flect.Pluralize(strings.TrimSuffix(object.GetObjectKind().GroupVersionKind().Kind, "Group"))
+		displayName = fmt.Sprintf("%d %s...", len(items), kind)
+	}
 	node := &ClusterResourceNode{
 		Name:        object.GetName(),
+		DisplayName: displayName,
 		Kind:        kind,
 		Group:       group,
 		Version:     version,
@@ -71,7 +95,7 @@ func objectTreeToResourceTree(objTree *tree.ObjectTree, object ctrlclient.Object
 	})
 
 	for _, child := range children {
-		node.Children = append(node.Children, objectTreeToResourceTree(objTree, child))
+		node.Children = append(node.Children, objectTreeToResourceTree(objTree, objTreeUngrouped, child))
 	}
 
 	return node

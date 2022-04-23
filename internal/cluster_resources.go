@@ -1,9 +1,11 @@
 package internal
 
 import (
+	"fmt"
 	"sort"
 	"strings"
 
+	"github.com/gobuffalo/flect"
 	"github.com/pkg/errors"
 	"k8s.io/klog/v2/klogr"
 	"sigs.k8s.io/cluster-api/cmd/clusterctl/client"
@@ -13,6 +15,7 @@ import (
 
 type ClusterResourceNode struct {
 	Name        string                 `json:"name"`
+	DisplayName string                 `json:"displayName"`
 	Kind        string                 `json:"kind"`
 	Group       string                 `json:"group"`
 	Version     string                 `json:"version"`
@@ -54,8 +57,17 @@ func objectTreeToResourceTree(objTree *tree.ObjectTree, object ctrlclient.Object
 	if err != nil {
 		log.Error(err, "failed to get provider for object", "kind", kind, "name", object.GetName())
 	}
+
+	displayName := object.GetName()
+	if tree.IsGroupObject(object) {
+		items := strings.Split(tree.GetGroupItems(object), tree.GroupItemsSeparator)
+		kind := flect.Pluralize(strings.TrimSuffix(object.GetObjectKind().GroupVersionKind().Kind, "Group"))
+		displayName = fmt.Sprintf("%d %s...", len(items), kind)
+	}
+
 	node := &ClusterResourceNode{
 		Name:        object.GetName(),
+		DisplayName: displayName,
 		Kind:        kind,
 		Group:       group,
 		Version:     version,

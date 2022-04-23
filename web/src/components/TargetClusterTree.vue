@@ -37,12 +37,12 @@
               <p
                 class="kind font-weight-medium"
                 v-else
-              >{{ node.name }}</p>
+              >{{ node.displayName }}</p>
 
               <p
                 class="name font-italic"
                 v-if="!node.isVirtual"
-              >{{ node.name }}</p>
+              >{{ node.displayName }}</p>
               <v-icon
                 class="chevron"
                 size="18"

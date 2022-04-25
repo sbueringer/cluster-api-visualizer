@@ -24,7 +24,7 @@ type ClusterResourceNode struct {
 	UID         string                 `json:"uid"`
 	IsVirtual   bool                   `json:"isVirtual"`
 	Collapsable bool                   `json:"collapsable"`
-	Colllapsed  bool                   `json:"collapsed"`
+	Collapsed   bool                   `json:"collapsed"`
 	Ready       bool                   `json:"ready"`
 	HasReady    bool                   `json:"hasReady"`
 	Children    []*ClusterResourceNode `json:"children"`
@@ -72,10 +72,11 @@ func objectTreeToResourceTree(objTree *tree.ObjectTree, object ctrlclient.Object
 		Version:     version,
 		Provider:    provider,
 		IsVirtual:   tree.IsVirtualObject(object),
-		Collapsable: tree.IsVirtualObject(object),
-		Children:    []*ClusterResourceNode{},
 		HasReady:    readyCondition != nil,
 		Ready:       readyCondition != nil && readyCondition.Status == corev1.ConditionTrue,
+		Collapsable: tree.IsVirtualObject(object),
+		Collapsed:   false,
+		Children:    []*ClusterResourceNode{},
 		UID:         string(object.GetUID()),
 	}
 
@@ -116,6 +117,7 @@ func createKindGroupNode(namespace string, kind string, children []*ClusterResou
 		Provider:    "virtual",
 		IsVirtual:   true,
 		Collapsable: true,
+		Collapsed:   true,
 		Children:    []*ClusterResourceNode{},
 		HasReady:    false,
 		Ready:       false,

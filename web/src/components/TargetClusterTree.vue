@@ -17,10 +17,11 @@
         <v-hover>
           <template v-slot:default="{ hover }">
             <v-card
-              class="node mx-auto transition-swing"
+              class="node mx-auto transition-swing linearGradient"
               :elevation="hover ? 6 : 3"
               :style="{ 
-                  'background-color': legend[node.provider].color, 
+                background: computeBackground(node),
+                // 'background-color': legend[node.provider].color, 
                 // 'background-color': legend[node.provider][hover ? 'hoverColor' : 'color'], 
                 border: collapsed ? '' : '',
               }"
@@ -100,6 +101,24 @@ export default {
         this.$emit("selectNode", node);
       }
     },
+    computeBackground(node) {
+      let bg = this.legend[node.provider].color;
+      let altColor = this.legend[node.provider].altColor;
+      // if (node.hasReady && !node.ready) {
+      return (
+        "repeating-linear-gradient( \
+        135deg, " +
+        altColor +
+        " 0px, " +
+        altColor +
+        " 20px, " +
+        bg +
+        " 20px, " +
+        bg +
+        " 40px)"
+      );
+      // }
+    },
   },
 };
 </script>
@@ -117,6 +136,16 @@ export default {
     // border: 1px solid black;
   }
 }
+
+// .linearGradient {
+//   background: repeating-linear-gradient(
+//     45deg,
+//     #aaa,
+//     #aaa 10px,
+//     #ffffff00 10px,
+//     #ffffff00 20px
+//   );
+// }
 
 .node-slot {
   cursor: default !important;

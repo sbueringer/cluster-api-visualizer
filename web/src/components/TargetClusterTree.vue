@@ -69,10 +69,13 @@
           :key="provider"
         >
           <div class="legend-entry-content">
-            <div :style="{
+            <div
+              class="legend-entry-icon"
+              :style="{
                 'background-color': entry.color
-              }" />
-            <span>{{ entry.name }}</span>
+              }"
+            />
+            <span class="legend-entry-text">{{ entry.name }}</span>
           </div>
 
         </div>
@@ -85,14 +88,18 @@
             >
               <div
                 :key="index"
-                class=""
-                :style="{
-                width: '32px',
-                background: this.legendGradient,
-              }"
-              />
+                class="wrap"
+              >
+                <div
+                  class="legend-entry-icon animated"
+                  :style="{
+                    width: '32px',
+                    background: this.legendGradient,
+                  }"
+                />
+              </div>
             </transition>
-            <span>Not Ready</span>
+            <span class="legend-entry-text">Not Ready</span>
           </div>
         </div>
 
@@ -282,7 +289,10 @@ export default {
         align-items: center;
         justify-content: center;
 
-        div {
+        .wrap {
+          height: 18px;
+        }
+        .legend-entry-icon {
           display: inline-block;
           border-radius: 3px;
           margin: 0 8px;

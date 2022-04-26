@@ -17,10 +17,10 @@
         <v-hover>
           <template v-slot:default="{ hover }">
             <v-card
-              class="node mx-auto transition-swing animated"
+              :class="[ 'node', 'mx-auto', 'transition-swing', { animated: (node.hasReady && !node.ready) } ]"
               :elevation="hover ? 6 : 3"
               :style="{ 
-                background: (node.hasReady && !node.ready) ? computeLinearGradient(legend[node.provider].color, 20) : legend[node.provider].color,
+                background: (node.hasReady && !node.ready) ? computeLinearGradient([legend[node.provider].color], 20) : legend[node.provider].color,
                 border: collapsed ? '' : '',
               }"
               v-on:click="selectNode(node)"
@@ -82,7 +82,8 @@
             <div
               class="animated"
               :style="{
-              background: computeLinearGradient(legend['virtual'].color, 4),
+                width: '32px',
+                background: computeLinearGradient(Object.values(legend).flatMap(e => [e.color, e.color, e.color, e.color, e.color]), 4),
               }"
             />
             <span>Not Ready</span>
@@ -115,27 +116,20 @@ export default {
         this.$emit("selectNode", node);
       }
     },
-    computeLinearGradient(color, offset) {
-      let altColor = this.adjustColor(color, 20);
-      return (
-        "repeating-linear-gradient(135deg, " +
-        altColor +
-        " " +
-        offset * 0 +
-        "px, " +
-        altColor +
-        "  " +
-        offset * 1 +
-        "px, " +
-        color +
-        "  " +
-        offset * 1 +
-        "px, " +
-        color +
-        "  " +
-        offset * 2 +
-        "px)"
-      );
+    computeLinearGradient(colors, width) {
+      // console.log("colors", Object.entries(colors));
+      let result = "repeating-linear-gradient(135deg";
+      colors.forEach((color, i) => {
+        let altColor = this.adjustColor(color, 20);
+        result += ", " + altColor + " " + width * (2 * i) + "px, ";
+        result += altColor + "  " + width * (2 * i + 1) + "px, ";
+        result += color + "  " + width * (2 * i + 1) + "px, ";
+        result += color + "  " + width * (2 * i + 2) + "px";
+      });
+      result += ")";
+      // console.log("Result is\n", result);
+
+      return result;
     },
   },
 };
@@ -181,10 +175,10 @@ export default {
 }
 
 .animated {
-  background-size: 400% 400% !important;
-  -webkit-animation: SlideRight 7.5s linear infinite !important;
-  -moz-animation: SlideRight 7.5s linear infinite !important;
-  animation: SlideRight 7.5s linear infinite !important;
+  background-size: 400% 100% !important;
+  -webkit-animation: SlideRight 5s linear infinite !important;
+  -moz-animation: SlideRight 5s linear infinite !important;
+  animation: SlideRight 5s linear infinite !important;
 }
 
 .node-slot {

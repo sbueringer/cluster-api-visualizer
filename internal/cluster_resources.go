@@ -92,7 +92,7 @@ func objectTreeToResourceTree(objTree *tree.ObjectTree, object ctrlclient.Object
 	}
 
 	log.V(3).Info("Node is", "node", node.Kind+"/"+node.Name)
-	node.Children = createKindGroupNode(object.GetNamespace(), "Machine", childTrees)
+	node.Children = createKindGroupNode(object.GetNamespace(), "Machine", "cluster", childTrees)
 
 	return node
 }
@@ -102,7 +102,7 @@ func objectTreeToResourceTree(objTree *tree.ObjectTree, object ctrlclient.Object
 // If count > 1, create a group node and add children to group node
 // Look into adding a striped background for nodes that aren't ready
 
-func createKindGroupNode(namespace string, kind string, children []*ClusterResourceNode) []*ClusterResourceNode {
+func createKindGroupNode(namespace string, kind string, provider string, children []*ClusterResourceNode) []*ClusterResourceNode {
 	log := klogr.New()
 
 	log.V(2).Info("Starting children are ", "children", nodeArrayNames(children))
@@ -114,7 +114,7 @@ func createKindGroupNode(namespace string, kind string, children []*ClusterResou
 		Kind:        kind,
 		Group:       "virtual.cluster.x-k8s.io",
 		Version:     "v1beta1",
-		Provider:    "virtual",
+		Provider:    "cluster",
 		IsVirtual:   true,
 		Collapsable: true,
 		Collapsed:   true,

@@ -149,13 +149,13 @@ export default {
     },
     iterateGradientColors() {
       let legendColors = Object.values(this.legend);
-      console.log("Color:", legendColors[this.index].color);
+      // console.log("Color:", legendColors[this.index].color);
       this.legendGradient = this.computeNotReadyGradient(
         legendColors[this.index++].color,
         4
       );
       this.index = this.index % legendColors.length;
-      console.log("Gradient is", this.legendGradient);
+      // console.log("Gradient is", this.legendGradient);
     },
   },
   mounted() {

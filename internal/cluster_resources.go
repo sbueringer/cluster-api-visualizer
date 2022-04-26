@@ -128,6 +128,10 @@ func createKindGroupNode(namespace string, kind string, provider string, childre
 		if child.Kind == kind {
 			groupNode.Children = append(groupNode.Children, child)
 			groupNode.UID += child.UID + " "
+			if child.HasReady {
+				groupNode.HasReady = true
+				groupNode.Ready = child.Ready && groupNode.Ready
+			}
 		} else {
 			resultChildren = append(resultChildren, child)
 		}

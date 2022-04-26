@@ -20,7 +20,7 @@
               :class="[ 'node', 'mx-auto', 'transition-swing', { animated: (node.hasReady && !node.ready) } ]"
               :elevation="hover ? 6 : 3"
               :style="{ 
-                background: (node.hasReady && !node.ready) ? computeLinearGradient([legend[node.provider].color], 20) : legend[node.provider].color,
+                background: (node.hasReady && !node.ready) ? computeNotReadyGradient(legend[node.provider].color, 20) : legend[node.provider].color,
                 border: collapsed ? '' : '',
               }"
               v-on:click="selectNode(node)"
@@ -79,13 +79,19 @@
 
         <div class="legend-entry">
           <div class="legend-entry-content">
-            <div
-              class="animated"
-              :style="{
+            <transition
+              name="fade"
+              mode="out-in"
+            >
+              <div
+                :key="index"
+                class=""
+                :style="{
                 width: '32px',
-                background: computeLinearGradient(Object.values(legend).flatMap(e => [e.color, e.color, e.color, e.color, e.color]), 4),
+                background: this.legendGradient,
               }"
-            />
+              />
+            </transition>
             <span>Not Ready</span>
           </div>
         </div>
@@ -103,6 +109,12 @@ export default {
   components: {
     VueTree,
   },
+  data() {
+    return {
+      legendGradient: "",
+      index: 0,
+    };
+  },
   props: {
     treeConfig: Object,
     treeData: Object,
@@ -116,21 +128,36 @@ export default {
         this.$emit("selectNode", node);
       }
     },
+    computeNotReadyGradient(color, width) {
+      return this.computeLinearGradient(
+        [color, this.adjustColor(color, 20)],
+        width
+      );
+    },
     computeLinearGradient(colors, width) {
-      // console.log("colors", Object.entries(colors));
+      // console.log("colors", colors);
       let result = "repeating-linear-gradient(135deg";
       colors.forEach((color, i) => {
-        let altColor = this.adjustColor(color, 20);
-        result += ", " + altColor + " " + width * (2 * i) + "px, ";
-        result += altColor + "  " + width * (2 * i + 1) + "px, ";
-        result += color + "  " + width * (2 * i + 1) + "px, ";
-        result += color + "  " + width * (2 * i + 2) + "px";
+        result += ", " + color + " " + width * (2 * i) + "px,";
+        result += color + "  " + width * (2 * i + 1) + "px";
       });
       result += ")";
-      // console.log("Result is\n", result);
 
       return result;
     },
+    iterateGradientColors() {
+      let legendColors = Object.values(this.legend);
+      console.log("Color:", legendColors[this.index].color);
+      this.legendGradient = this.computeNotReadyGradient(
+        legendColors[this.index++].color,
+        4
+      );
+      this.index = this.index % legendColors.length;
+      console.log("Gradient is", this.legendGradient);
+    },
+  },
+  mounted() {
+    setInterval(this.iterateGradientColors, 2000);
   },
 };
 </script>
@@ -147,6 +174,14 @@ export default {
     background-color: #f8f3f2;
     // border: 1px solid black;
   }
+}
+
+.fade-enter-active,
+.fade-leave-active {
+  transition: opacity 0.5s;
+}
+.fade-enter, .fade-leave-to /* .fade-leave-active below version 2.1.8 */ {
+  opacity: 0;
 }
 
 @-webkit-keyframes SlideRight {

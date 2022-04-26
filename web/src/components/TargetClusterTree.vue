@@ -101,21 +101,23 @@ export default {
     },
     computeBackground(node) {
       let bg = this.legend[node.provider].color;
-      let altColor = this.legend[node.provider].altColor;
-      // if (node.hasReady && !node.ready) {
-      return (
-        "repeating-linear-gradient( \
+      let altColor = this.adjustColor(bg, 20);
+      if (node.hasReady && !node.ready) {
+        return (
+          "repeating-linear-gradient( \
         135deg, " +
-        altColor +
-        " 0px, " +
-        altColor +
-        " 20px, " +
-        bg +
-        " 20px, " +
-        bg +
-        " 40px)"
-      );
-      // }
+          altColor +
+          " 0px, " +
+          altColor +
+          " 20px, " +
+          bg +
+          " 20px, " +
+          bg +
+          " 40px)"
+        );
+      }
+
+      return bg;
     },
   },
 };
@@ -162,21 +164,9 @@ export default {
 
 .animated {
   background-size: 400% 400% !important;
-  -webkit-animation: SlideRight 5s linear infinite !important;
-  -moz-animation: SlideRight 5s linear infinite !important;
-  animation: SlideRight 5s linear infinite !important;
-}
-
-@keyframes gradient {
-  0% {
-    background-position: 0% 50%;
-  }
-  50% {
-    background-position: 100% 50%;
-  }
-  100% {
-    background-position: 0% 50%;
-  }
+  -webkit-animation: SlideRight 7.5s linear infinite !important;
+  -moz-animation: SlideRight 7.5s linear infinite !important;
+  animation: SlideRight 7.5s linear infinite !important;
 }
 
 .node-slot {

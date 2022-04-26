@@ -20,7 +20,7 @@
               class="node mx-auto transition-swing animated"
               :elevation="hover ? 6 : 3"
               :style="{ 
-                background: computeBackground(node),
+                background: (node.hasReady && !node.ready) ? computeLinearGradient(legend[node.provider].color, 20) : legend[node.provider].color,
                 border: collapsed ? '' : '',
               }"
               v-on:click="selectNode(node)"
@@ -68,11 +68,27 @@
           v-for="(entry, provider) in legend"
           :key="provider"
         >
-          <div :style="{
-            'background-color': entry.color
-          }" />
-          <span>{{ entry.name }}</span>
+          <div class="legend-entry-content">
+            <div :style="{
+                'background-color': entry.color
+              }" />
+            <span>{{ entry.name }}</span>
+          </div>
+
         </div>
+
+        <div class="legend-entry">
+          <div class="legend-entry-content">
+            <div
+              class="animated"
+              :style="{
+              background: computeLinearGradient(legend['virtual'].color, 4),
+              }"
+            />
+            <span>Not Ready</span>
+          </div>
+        </div>
+
       </v-card>
     </div>
   </div>
@@ -99,25 +115,27 @@ export default {
         this.$emit("selectNode", node);
       }
     },
-    computeBackground(node) {
-      let bg = this.legend[node.provider].color;
-      let altColor = this.adjustColor(bg, 20);
-      if (node.hasReady && !node.ready) {
-        return (
-          "repeating-linear-gradient( \
-        135deg, " +
-          altColor +
-          " 0px, " +
-          altColor +
-          " 20px, " +
-          bg +
-          " 20px, " +
-          bg +
-          " 40px)"
-        );
-      }
-
-      return bg;
+    computeLinearGradient(color, offset) {
+      let altColor = this.adjustColor(color, 20);
+      return (
+        "repeating-linear-gradient(135deg, " +
+        altColor +
+        " " +
+        offset * 0 +
+        "px, " +
+        altColor +
+        "  " +
+        offset * 1 +
+        "px, " +
+        color +
+        "  " +
+        offset * 1 +
+        "px, " +
+        color +
+        "  " +
+        offset * 2 +
+        "px)"
+      );
     },
   },
 };
@@ -230,13 +248,18 @@ export default {
       display: inline-block;
       margin-right: 10px;
 
-      div {
-        display: inline-block;
-        border-radius: 3px;
-        // border: 1px solid black;
-        margin: 0 5px;
-        width: 12px;
-        height: 12px;
+      .legend-entry-content {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+
+        div {
+          display: inline-block;
+          border-radius: 3px;
+          margin: 0 8px;
+          width: 18px;
+          height: 18px;
+        }
       }
     }
   }

@@ -17,12 +17,10 @@
         <v-hover>
           <template v-slot:default="{ hover }">
             <v-card
-              class="node mx-auto transition-swing linearGradient"
+              class="node mx-auto transition-swing animated"
               :elevation="hover ? 6 : 3"
               :style="{ 
                 background: computeBackground(node),
-                // 'background-color': legend[node.provider].color, 
-                // 'background-color': legend[node.provider][hover ? 'hoverColor' : 'color'], 
                 border: collapsed ? '' : '',
               }"
               v-on:click="selectNode(node)"
@@ -137,15 +135,49 @@ export default {
   }
 }
 
-// .linearGradient {
-//   background: repeating-linear-gradient(
-//     45deg,
-//     #aaa,
-//     #aaa 10px,
-//     #ffffff00 10px,
-//     #ffffff00 20px
-//   );
-// }
+@-webkit-keyframes SlideRight {
+  0% {
+    background-position: 100% 50%;
+  }
+  100% {
+    background-position: 0% 50%;
+  }
+}
+@-moz-keyframes SlideRight {
+  0% {
+    background-position: 100% 50%;
+  }
+  100% {
+    background-position: 0% 50%;
+  }
+}
+@keyframes SlideRight {
+  0% {
+    background-position: 100% 50%;
+  }
+  100% {
+    background-position: 0% 50%;
+  }
+}
+
+.animated {
+  background-size: 400% 400% !important;
+  -webkit-animation: SlideRight 5s linear infinite !important;
+  -moz-animation: SlideRight 5s linear infinite !important;
+  animation: SlideRight 5s linear infinite !important;
+}
+
+@keyframes gradient {
+  0% {
+    background-position: 0% 50%;
+  }
+  50% {
+    background-position: 100% 50%;
+  }
+  100% {
+    background-position: 0% 50%;
+  }
+}
 
 .node-slot {
   cursor: default !important;
@@ -182,6 +214,7 @@ export default {
 
   .name,
   .kind {
+    // text-shadow: rgba(0, 0, 0, 1) 3px 0 5px;
     max-width: 160px;
     text-align: center;
     white-space: nowrap;

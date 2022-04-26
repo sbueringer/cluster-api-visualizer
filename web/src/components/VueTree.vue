@@ -212,14 +212,18 @@ export default {
      **/
     updatedInternalData(externalData) {
       var data = { name: "__invisible_root", children: [] };
+      console.log("External data: ", externalData);
       if (!externalData) return data;
       if (Array.isArray(externalData)) {
         for (var i = externalData.length - 1; i >= 0; i--) {
           data.children.push(this.deepCopy(externalData[i]));
+          console.log("Array child", data.children[i]);
         }
       } else {
         data.children.push(this.deepCopy(externalData));
+        console.log("Normal child", data.children);
       }
+      console.log("Data is ", data);
       return data;
     },
     /**
@@ -468,6 +472,7 @@ export default {
     onClickNode(index) {
       if (this.collapseEnabled) {
         const curNode = this.nodeDataList[index];
+        // console.log(curNode.data);
         if (!curNode.data.collapsable) return;
 
         if (curNode.data.children) {

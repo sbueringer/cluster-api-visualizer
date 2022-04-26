@@ -82,23 +82,17 @@
 
         <div class="legend-entry">
           <div class="legend-entry-content">
-            <transition
-              name="fade"
-              mode="out-in"
-            >
+            <div class="overlapping-icon-wrapper">
               <div
-                :key="index"
-                class="wrap"
-              >
-                <div
-                  class="legend-entry-icon animated"
-                  :style="{
-                    width: '32px',
-                    background: this.legendGradient,
+                :key="i"
+                v-for="(entry, i) in Object.values(this.legend)"
+                class="legend-entry-icon animated overlapping-icon"
+                :style="{
+                    background: computeNotReadyGradient(entry.color, 3),
+                    opacity: (i == index) ? 1 : 0,
                   }"
-                />
-              </div>
-            </transition>
+              />
+            </div>
             <span class="legend-entry-text">Not Ready</span>
           </div>
         </div>
@@ -147,6 +141,7 @@ export default {
       colors.forEach((color, i) => {
         result += ", " + color + " " + width * (2 * i) + "px,";
         result += color + "  " + width * (2 * i + 1) + "px";
+        // Alternate effect is (i) and (i+1)
       });
       result += ")";
 
@@ -217,7 +212,7 @@ export default {
 }
 
 .animated {
-  background-size: 400% 100% !important;
+  background-size: 500% 100% !important;
   -webkit-animation: SlideRight 5s linear infinite !important;
   -moz-animation: SlideRight 5s linear infinite !important;
   animation: SlideRight 5s linear infinite !important;
@@ -286,11 +281,28 @@ export default {
 
       .legend-entry-content {
         display: flex;
+        position: relative;
         align-items: center;
         justify-content: center;
 
-        .wrap {
+        .overlapping-icon-wrapper {
+          position: relative;
           height: 18px;
+          width: 18px;
+          margin: 0 8px;
+          display: inline-block;
+
+          .overlapping-icon {
+            position: absolute;
+            top: 0;
+            left: 0;
+            height: 18px;
+            margin: 0 !important;
+            transition: opacity 1s linear;
+          }
+          .overlapping-icon + .overlapping-icon {
+            opacity: 0;
+          }
         }
         .legend-entry-icon {
           display: inline-block;
@@ -298,6 +310,9 @@ export default {
           margin: 0 8px;
           width: 18px;
           height: 18px;
+        }
+        .legend-entry-text {
+          display: inline-block;
         }
       }
     }

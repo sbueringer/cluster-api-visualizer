@@ -83,13 +83,22 @@ go-fmt:
 ## Docker
 ## --------------------------------------
 
+ALL_ARCH = amd64 arm arm64
+
 .PHONY: docker-build
-docker-build: 
-	docker build --no-cache -t $(DOCKER_IMAGE):$(TAG) .
+docker-build:
+	docker build --build-arg ARCH=amd64 -t $(DOCKER_IMAGE)-amd64:$(TAG)  .
+	docker build --build-arg ARCH=arm -t $(DOCKER_IMAGE)-arm:$(TAG)  .
+	docker build --build-arg ARCH=arm64 -t $(DOCKER_IMAGE)-arm64:$(TAG)  .
 
 .PHONY: docker-push
-docker-push: 
-	docker push $(DOCKER_IMAGE):$(TAG)
+docker-push:
+	docker push $(DOCKER_IMAGE)-amd64:$(TAG)
+	docker push $(DOCKER_IMAGE)-arm:$(TAG)
+	docker push $(DOCKER_IMAGE)-arm64:$(TAG)
+	docker manifest create --amend $(DOCKER_IMAGE):$(TAG) $(shell echo $(ALL_ARCH) | sed -e "s~[^ ]*~$(DOCKER_IMAGE)\-&:$(TAG)~g")
+	@for arch in $(ALL_ARCH); do docker manifest annotate --arch $${arch} ${DOCKER_IMAGE}:${TAG} ${DOCKER_IMAGE}-$${arch}:${TAG}; done
+	docker manifest push --purge $(DOCKER_IMAGE):$(TAG)
 
 ## --------------------------------------
 ## Helm
